@@ -1,0 +1,56 @@
+FROM python:3.10-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libgl1 \
+    libglib2.0-0 \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.inference.txt .
+
+# Install torch with retry loop
+RUN pip install --no-cache-dir --upgrade pip && \
+    for i in 1 2 3 4 5; do \
+        pip install --no-cache-dir \
+        --timeout 600 \
+        torch==2.0.1+cpu \
+        --index-url https://download.pytorch.org/whl/cpu \
+        && break \
+        || echo "Retry $i..." && sleep 15; \
+    done
+
+# Install remaining
+RUN pip install --no-cache-dir \
+    --timeout 300 \
+    --retries 5 \
+    numpy==1.26.4 \
+    gymnasium \
+    "gymnasium[atari]" \
+    ale-py \
+    fastapi \
+    uvicorn \
+    pydantic \
+    pyyaml \
+    python-dotenv
+
+# Install ROMs
+RUN pip install --no-cache-dir autorom[accept-rom-license] && \
+    AutoROM --accept-license
+
+COPY src/ ./src/
+COPY models/ ./models/
+
+RUN mkdir -p models
+
+ENV MODEL_PATH=/app/models/latest_model.pth
+ENV ATARI_GAME_ID=ALE/Pong-v5
+ENV N_ACTIONS=6
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8000
+
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

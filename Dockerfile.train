@@ -1,0 +1,45 @@
+FROM python:3.10-slim
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    git \
+    wget \
+    curl \
+    ffmpeg \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    swig \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy requirements first for Docker layer caching
+COPY requirements.train.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.train.txt
+
+# Install and accept Atari ROMs
+RUN pip install --no-cache-dir autorom[accept-rom-license] && \
+    AutoROM --accept-license
+
+# Copy project
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p models gameplay_videos logs/tensorboard logs/mlflow
+
+# Environment variables with defaults
+ENV ATARI_GAME_ID=ALE/Pong-v5
+ENV MODEL_PATH=/app/models/latest_model.pth
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Default command
+CMD ["python", "scripts/train.py"]

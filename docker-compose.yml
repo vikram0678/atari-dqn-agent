@@ -1,0 +1,68 @@
+version: "3.8"
+
+services:
+
+  # ── Training service 
+  train:
+    build:
+      context: .
+      dockerfile: Dockerfile.train
+    image: rl-agent-train
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./gameplay_videos:/app/gameplay_videos
+    environment:
+      - ATARI_GAME_ID=${ATARI_GAME_ID:-ALE/Pong-v5}
+      - MODEL_PATH=/app/models/latest_model.pth
+      - EPISODES=${EPISODES:-1000}
+    command: python scripts/train.py
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # ── Inference API service 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.inference
+    image: rl-agent-inference
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models
+    environment:
+      - MODEL_PATH=/app/models/latest_model.pth
+      - ATARI_GAME_ID=${ATARI_GAME_ID:-ALE/Pong-v5}
+      - N_ACTIONS=${N_ACTIONS:-6}
+    depends_on:
+      - train
+    restart: unless-stopped
+
+  # ── Evaluate service 
+  evaluate:
+    image: rl-agent-train
+    volumes:
+      - ./models:/app/models
+    environment:
+      - ATARI_GAME_ID=${ATARI_GAME_ID:-ALE/Pong-v5}
+      - MODEL_PATH=/app/models/latest_model.pth
+    command: python scripts/evaluate.py --episodes 100
+
+  # ── Play / record service 
+  play:
+    image: rl-agent-train
+    volumes:
+      - ./models:/app/models
+      - ./gameplay_videos:/app/gameplay_videos
+    environment:
+      - ATARI_GAME_ID=${ATARI_GAME_ID:-ALE/Pong-v5}
+      - MODEL_PATH=/app/models/latest_model.pth
+    command: python scripts/play.py --output /app/gameplay_videos/demo.mp4
+
+
+

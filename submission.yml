@@ -1,0 +1,41 @@
+commands:
+  build: >
+    docker build -t rl-agent-train -f Dockerfile.train . &&
+    docker build -t rl-agent-inference -f Dockerfile.inference .
+
+  train: >
+    docker run --rm
+    -v $(pwd)/models:/app/models
+    -v $(pwd)/logs:/app/logs
+    -e MODEL_PATH=/app/models/latest_model.pth
+    rl-agent-train
+    python scripts/train.py --game ALE/Pong-v5 --episodes 1000
+
+  evaluate: >
+    docker run --rm
+    -v $(pwd)/models:/app/models
+    -e MODEL_PATH=/app/models/best_model.pth
+    rl-agent-train
+    python scripts/evaluate.py
+    --game ALE/Pong-v5
+    --model /app/models/best_model.pth
+    --episodes 100
+
+  play: >
+    docker run --rm
+    -v $(pwd)/models:/app/models
+    -v $(pwd)/gameplay_videos:/app/gameplay_videos
+    rl-agent-train
+    python scripts/play.py
+    --game ALE/Pong-v5
+    --model /app/models/best_model.pth
+    --output /app/gameplay_videos/demo.mp4
+
+  api: >
+    docker run -d
+    -p 8000:8000
+    -v $(pwd)/models:/app/models
+    -e MODEL_PATH=/app/models/best_model.pth
+    -e ATARI_GAME_ID=ALE/Pong-v5
+    -e N_ACTIONS=6
+    rl-agent-inference
