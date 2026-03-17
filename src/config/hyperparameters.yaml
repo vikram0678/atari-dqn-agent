@@ -1,0 +1,36 @@
+# ============================================================
+# DQN Hyperparameters
+# ============================================================
+
+game: "ALE/Pong-v5"
+
+# Environment
+frame_skip: 4
+frame_size: 84
+stack_frames: 4
+max_steps_per_episode: 10000
+
+# Training
+episodes: 1000
+batch_size: 32
+learning_rate: 0.0001
+gamma: 0.99
+
+# Replay Buffer
+replay_buffer_size: 100000
+min_replay_size: 10000
+
+# Exploration
+epsilon_start: 1.0
+epsilon_min: 0.05
+epsilon_decay: 0.995
+decay_type: "exponential"
+decay_steps: 100000
+
+# Target Network
+target_update: 1000
+
+# Checkpointing
+save_every: 100
+early_stop_reward: 18.0
+early_stop_window: 100
